@@ -8,5 +8,3 @@ Everytime you install a new version or update of Kontakt, this software will sto
 type in the version you want to load and hit the load button to load the version you want to use
 
 You can also check what version is currently loaded with the read button.  This button only works after load or store have been used as it reports back the last usage of load or store for each type (exe,vst,aax)
-
-Creator: Matt Constantine / Mr Thursday

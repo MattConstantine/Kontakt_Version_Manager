@@ -25,8 +25,8 @@ exe = EXE(
     name='Kontakt Version Manager',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,
-    upx=False,
+    strip=False,
+    upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    manifest='kontakt_version_manager.manifest'
+    manifest='kontakt_version_manager.manifest',
 )

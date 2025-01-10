@@ -6,10 +6,13 @@
     name="KontaktVersionManager"
     type="win32"
   />
-  <application>
-    <windowsSettings>
-      <setting name="requestedExecutionLevel" value="requireAdministrator" />
-      <setting name="supportsIsolation" value="true" />
-    </windowsSettings>
-  </application>
+
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
 </assembly>
