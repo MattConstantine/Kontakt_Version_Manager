@@ -4,7 +4,7 @@ Kontakt Version Manager
 
 Written by Mr Thursday
 
-Last modified 10/1/25
+Last modified 13/1/25
 
 This script assumes that you keep all of your Kontakt exe files in the same folder named by version.
 You could also include betas simply by adding a b at the end, or the word beta when storing
@@ -15,6 +15,8 @@ Select the mode 'read' to see what version is currently loaded.
 
 Make sure that the correct version of Kontakt is selected.
 
+Here is the working command for pyinstaller that successfully compiles the program wihtout using th spec file:
+pyinstaller --onefile --noconsole --uac-admin --clean --icon "kvm_icon.ico" --manifest "Kontakt Version Manager.exe.manifest" --version-file "version_info.txt" --name "Kontakt Version Manager" Kontakt_Version_Manager.py
 '''
 
 # ----------------------------------------------------------------------------------]
@@ -108,6 +110,58 @@ def save_library_path(path):
     with open(config_file, "w", encoding="utf-8") as f:
         config.write(f)
 
+def load_config_settings():
+    """
+    Reads the LibraryPath, KontaktVersion, and NewVersion from the config file.
+    Returns a dictionary with the settings.
+    """
+    config_file = get_config_path()
+    config = configparser.ConfigParser()
+    settings = {
+        "LibraryPath": "",
+        "KontaktVersion": "8",
+        "NewVersion": "8.0.0",
+        "IncludeVST": True,
+        "IncludeAAX": True
+    }
+
+    if os.path.exists(config_file):
+        config.read(config_file)
+        if config.has_section(CONFIG_SECTION):
+            settings["LibraryPath"] = config.get(CONFIG_SECTION, "LibraryPath", fallback="")
+            settings["KontaktVersion"] = config.get(CONFIG_SECTION, "KontaktVersion", fallback="8")
+            settings["NewVersion"] = config.get(CONFIG_SECTION, "NewVersion", fallback="8.0.0")
+            settings["IncludeVST"] = config.getboolean(CONFIG_SECTION, "IncludeVST", fallback=True)
+            settings["IncludeAAX"] = config.getboolean(CONFIG_SECTION, "IncludeAAX", fallback=True)
+
+    return settings
+
+def save_config_settings(library_path, kontakt_version, new_version,include_vst,include_aax):
+    """
+    Saves the last used settings into the config file.
+    """
+    config_file = get_config_path()
+    config = configparser.ConfigParser()
+
+    # Read existing config file if it exists
+    if os.path.exists(config_file):
+        config.read(config_file)
+
+    # Ensure the [Settings] section exists
+    if not config.has_section(CONFIG_SECTION):
+        config.add_section(CONFIG_SECTION)
+
+    # Update values
+    config[CONFIG_SECTION]["LibraryPath"] = library_path
+    config[CONFIG_SECTION]["KontaktVersion"] = kontakt_version
+    config[CONFIG_SECTION]["NewVersion"] = new_version
+    config[CONFIG_SECTION]["IncludeVST"] = str(include_vst)
+    config[CONFIG_SECTION]["IncludeAAX"] = str(include_aax)
+
+    # Write the updated config back to file
+    with open(config_file, "w", encoding="utf-8") as f:
+        config.write(f)
+
 def store_kontakt_version_in_config(kontakt_version, file_extension, version_string):
     """
     Stores the version for the specified kontakt_version and file_extension
@@ -152,15 +206,13 @@ def check_version_match(new_version,kontakt_version,text_widget):
         # Convert the extracted part to an integer
         version_number = int(first_part)
     except ValueError:
-        print(f"{Fore.RED}Error: Invalid version format.{Style.RESET_ALL}")
         text_widget.insert(tk.END,f"\nError: Invalid version format.")
         match = False
         return match
     
     # Compare the extracted version number with kontakt_version
     if version_number != kontakt_version:
-        print(f"{Fore.RED}Kontakt Version mismatch{Style.RESET_ALL}")
-        text_widget.insert(tk.END,"\nKontakt Version mismatch")
+        text_widget.insert(tk.END,"\nKontakt Version mismatch\n\nMake sure that the version number in the detail field matches the selected Kontakt version")
         match = False
         return match
     else:
@@ -172,7 +224,6 @@ def copy_kontakt(source, destination, file_extension,new_version,kontakt_version
     Loads Selected version as current working version of Kontakt.
     """
     if not os.path.isdir(source):
-        print(f"{Fore.RED}Directory does not exist or cannot be accessed : \n{source}{Style.RESET_ALL}")
         text_widget.insert(tk.END,f"\nDirectory does not exist or cannot be accessed : \n{source}")
         return
 
@@ -180,25 +231,20 @@ def copy_kontakt(source, destination, file_extension,new_version,kontakt_version
     source_file_path = os.path.join(source, file_to_copy)
 
     if not os.path.exists(source_file_path):
-        print(f"{Fore.RED}{file_to_copy} is not available.{Fore.YELLOW} \nAvailable versions include : {Style.RESET_ALL}")
         text_widget.insert(tk.END,f"\n{file_to_copy} is not available.\nAvailable versions include :")
         # List all files that start with "Kontakt" and end with the correct file extension
         for file in os.listdir(source):
             if file.startswith(f"Kontakt {kontakt_version}") and file.endswith(f"{file_extension}"):
-                print(file)
                 text_widget.insert(tk.END,f"\n{file}")
-        print("\n")
         text_widget.insert(tk.END,"\n")
         return
 
     # Copy it directly to the destination, overwriting the file already there
     try:
         shutil.copy2(source_file_path, destination)
-        print(f"{Fore.GREEN}{file_to_copy} copied to :\n{Fore.CYAN}{destination}{Style.RESET_ALL}\n")
         text_widget.insert(tk.END,f"\n{file_to_copy} loaded")
         store_kontakt_version_in_config(kontakt_version, file_extension, new_version)
     except Exception as e:
-        print(f"{Fore.RED}Failed to copy {file_to_copy} to {destination}. Error: {e}{Style.RESET_ALL}\n")
         text_widget.insert(tk.END,f"\nFailed to load {file_to_copy}. Error: {e}\n")
 
 def store_kontakt(source, destination,new_version,kontakt_version,text_widget):
@@ -211,24 +257,20 @@ def store_kontakt(source, destination,new_version,kontakt_version,text_widget):
 
     # Check if the specific version file exists in the source directory
     if not os.path.exists(source):
-        print(f"{Fore.RED}{filename}{file_extension} not found in the source directory: \n{source}{Style.RESET_ALL}\n")
         text_widget.insert(tk.END,f"\n{filename}{file_extension} not found")
         return
 
     # Check if the destination file already exists to avoid overwriting
     if os.path.exists(dest_file_path):
-        print(f"{Fore.YELLOW}{file_to_store} already exists and will not be overwritten: \n{Fore.CYAN}{dest_file_path}{Style.RESET_ALL}\n")
         text_widget.insert(tk.END,f"\n{file_to_store} already exists and will not be overwritten")
         return
     
     # Copy it directly to the destination, but only if it doesn't already exist
     try:
         shutil.copy2(source, dest_file_path)
-        print(f"{Fore.GREEN}{file_to_store} copied to :\n{Fore.CYAN}{dest_file_path}{Style.RESET_ALL}\n")
         text_widget.insert(tk.END,f"\n{file_to_store} Stored")
         store_kontakt_version_in_config(kontakt_version, file_extension, new_version)
     except Exception as e:
-        print(f"{Fore.RED}Failed to copy {file_to_store} file to \n{destination}. \nError: {e}{Style.RESET_ALL}\n")
         text_widget.insert(tk.END,f"\nFailed to store {file_to_store}. \nError: {e}\n")
 
 def read_kontakt_version(source,kontakt_version,text_widget):
@@ -236,12 +278,10 @@ def read_kontakt_version(source,kontakt_version,text_widget):
     Checks the config file to see the current loaded version and print it.
     """
     if not os.path.exists(source):
-        print(f"{Fore.RED}File not found : {source}{Style.RESET_ALL}\n")
         return
 
     _, file_extension = os.path.splitext(source)
     stored_version = load_kontakt_version_from_config(kontakt_version, file_extension)
-    print(f"{Fore.GREEN}{stored_version}{Style.RESET_ALL}\n")
     text_widget.insert(tk.END, f"\n{stored_version}")
 
 def run_kontakt_operation(mode, kontakt_version, new_version, include_vst, include_aax,text_widget,library_path):
@@ -251,7 +291,6 @@ def run_kontakt_operation(mode, kontakt_version, new_version, include_vst, inclu
     kontakt_exe_path,kontakt_vst_path,kontakt_aax_path = set_kontakt_version(kontakt_version)
 
     if mode == 'read':
-        print("Currently Loaded Versions:")
         text_widget.insert(tk.END,"\nCurrently Loaded Versions:")
         read_kontakt_version(kontakt_exe_path,kontakt_version,text_widget)
         if include_vst:
@@ -370,6 +409,16 @@ def main():
     status_label = ttk.Label(root, textvariable=status_var, wraplength=300)
     status_label.pack(pady=10)
     
+    # Load saved settings
+    settings = load_config_settings()
+
+    # Initialize the variables
+    library_path_var.set(settings["LibraryPath"])
+    version_var.set(settings["KontaktVersion"])
+    new_version_var.set(settings["NewVersion"])
+    include_vst_var.set(settings["IncludeVST"])
+    include_aax_var.set(settings["IncludeAAX"])
+
     # ------------------
     # Define Callback Functions for each button: Load, Store, Read
     def on_load():
@@ -478,6 +527,16 @@ def main():
 
     #display instructions at startup
     write_instructions(text_output)
+    
+    # Save settings when the window is closed
+    root.protocol("WM_DELETE_WINDOW", lambda: (save_config_settings(
+        library_path_var.get(),
+        version_var.get(),
+        new_version_var.get(),
+        include_vst_var.get(),
+        include_aax_var.get()
+    ), root.destroy()))
+
     # Start the event loop
     root.mainloop()
 
